@@ -15,6 +15,7 @@ import {
   listBacktests,
   listDatasets,
   listLogs,
+  listRugChecks,
   listSignals,
   saveBacktest,
   saveSignals,
@@ -30,6 +31,13 @@ import {
 import { CANONICAL_INTERVALS } from "./lib/crypto/interval.js";
 import { getNews, newsProviderStatus, refreshNews } from "./lib/news/index.js";
 import { runBacktest } from "./lib/backtest/index.js";
+import { rugCheck } from "./lib/rug/index.js";
+import {
+  sizeFromSignal,
+  sizeFromStoredSignals,
+  sizePortfolio,
+  sizeTrade,
+} from "./lib/sizer/index.js";
 import { analyzeSymbolMTF } from "./lib/signals/mtf.js";
 import { scan } from "./lib/signals/screener.js";
 import { getMovers } from "./lib/signals/universe.js";
@@ -314,6 +322,77 @@ app.get("/api/backtest/:id", async (req, reply) => {
     return { error: "not found" };
   }
   return run;
+});
+
+/* ---------------- position sizing ---------------- */
+
+app.post("/api/size", async (req, reply) => {
+  try {
+    return sizeTrade(req.body || {});
+  } catch (err) {
+    reply.code(400);
+    return { error: err.message };
+  }
+});
+
+app.post("/api/size/signal", async (req, reply) => {
+  const body = req.body || {};
+  try {
+    return await sizeFromSignal({
+      symbol: body.symbol,
+      interval: body.interval || "5m",
+      equity: body.equity,
+      riskPct: body.riskPct,
+      feePct: body.feePct,
+      maxLeverage: body.maxLeverage,
+      scaleByConfidence: body.scaleByConfidence !== false,
+    });
+  } catch (err) {
+    reply.code(400);
+    return { error: err.message };
+  }
+});
+
+app.post("/api/size/portfolio", async (req, reply) => {
+  const body = req.body || {};
+  try {
+    if (Array.isArray(body.trades) && body.trades.length) {
+      return sizePortfolio(body);
+    }
+    return sizeFromStoredSignals({
+      equity: body.equity,
+      riskPct: body.riskPct,
+      maxTotalRiskPct: body.maxTotalRiskPct,
+      limit: body.limit,
+      scaleByConfidence: body.scaleByConfidence !== false,
+      feePct: body.feePct,
+      maxLeverage: body.maxLeverage,
+    });
+  } catch (err) {
+    reply.code(400);
+    return { error: err.message };
+  }
+});
+
+/* ---------------- rug check ---------------- */
+
+app.get("/api/rugcheck", async (req, reply) => {
+  const { address = "", chain = "", refresh = "0" } = req.query || {};
+  if (!address) {
+    reply.code(400);
+    return { error: "address is required" };
+  }
+  try {
+    return await rugCheck({ address, chain, refresh: refresh === "1" });
+  } catch (err) {
+    reply.code(502);
+    return { error: err.message };
+  }
+});
+
+app.get("/api/rugchecks", async (req) => {
+  const { limit = "50" } = req.query || {};
+  return listRugChecks(limit);
 });
 
 /* ---------------- logs ---------------- */

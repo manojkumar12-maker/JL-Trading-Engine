@@ -10,6 +10,8 @@ import Logs from "./components/Logs";
 import News from "./components/News";
 import Opportunities from "./components/Opportunities";
 import Backtest from "./components/Backtest";
+import RugCheck from "./components/RugCheck";
+import Sizer from "./components/Sizer";
 import { cardCls } from "./ui";
 
 export default function App() {
@@ -27,6 +29,8 @@ export default function App() {
       <main className="mx-auto grid max-w-6xl gap-5 px-4 pb-16">
         <Providers />
 
+        <RugCheck />
+
         <section className={cardCls}>
           <MarketExplorer data={data} onData={setData} />
           <div className="mt-4">
@@ -40,6 +44,8 @@ export default function App() {
         <Opportunities />
 
         <Backtest />
+
+        <Sizer />
 
         <News />
 

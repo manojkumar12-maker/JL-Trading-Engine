@@ -273,3 +273,110 @@ export interface BacktestRunSummary {
   params: { minScore?: number; stopAtr?: number; tpAtr?: number };
   summary: BacktestSummary;
 }
+
+export interface RugCheckItem {
+  id: string;
+  label: string;
+  severity: string;
+  detail: string;
+  points?: number;
+}
+
+export interface RugCheckResult {
+  address: string;
+  chain: string | null;
+  kind: string;
+  name: string | null;
+  symbol: string | null;
+  pairs: number;
+  dex: {
+    chainId: string;
+    dexId: string;
+    pairAddress: string;
+    priceUsd: number | null;
+    liquidityUsd: number | null;
+    volume24h: number | null;
+    pairCreatedAt: number | null;
+  } | null;
+  liquidityUsd: number | null;
+  volume24h: number | null;
+  priceUsd: number | null;
+  pairAgeHours: number | null;
+  score: number;
+  verdict: string;
+  checks: RugCheckItem[];
+  signals: RugCheckItem[];
+  taxes: { buy: number | null; sell: number | null };
+  holders: { count: number | null; top1Percent: number | null };
+  lpLockedPercent: number | null;
+  providers: {
+    goplus: boolean;
+    honeypot: boolean;
+    rugcheck: boolean;
+    dexscreener: boolean;
+  };
+  providerErrors: { provider: string; error: string }[];
+  createdAt: number;
+  cached?: boolean;
+}
+
+export interface RugCheckSummary {
+  address: string;
+  chain: string;
+  createdAt: number;
+  score: number;
+  verdict: string;
+}
+
+export interface SizerTarget {
+  price: number;
+  rMultiple: number;
+  profit: number;
+}
+
+export interface SizerResult {
+  side: string;
+  equity: number;
+  riskPct: number;
+  riskAmount: number;
+  entry: number;
+  stop: number;
+  riskPerUnit: number;
+  units: number;
+  notional: number;
+  leverage: number;
+  marginAtMaxLeverage: number;
+  priceRisk: number;
+  feeEstimate: number;
+  targets: SizerTarget[];
+  confidence: number | null;
+  warnings: string[];
+}
+
+export interface PortfolioAllocation extends SizerResult {
+  symbol: string | null;
+}
+
+export interface PortfolioResult {
+  equity: number;
+  riskPct: number;
+  maxTotalRiskPct: number;
+  totalRiskAmount: number;
+  totalNotional: number;
+  scaled: boolean;
+  allocations: PortfolioAllocation[];
+  warnings: string[];
+}
+
+export interface SignalSizerResult {
+  signal: {
+    symbol: string;
+    interval: string;
+    direction: string;
+    score: number;
+    confidence: number;
+    alignment: string | null;
+    plan: { entry: number; stop: number; targets: number[] };
+  };
+  size: SizerResult;
+}

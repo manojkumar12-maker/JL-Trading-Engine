@@ -120,6 +120,16 @@ db.exec(`
     trades TEXT,
     equity TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS rugchecks (
+    address TEXT NOT NULL,
+    chain TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    score REAL,
+    verdict TEXT,
+    data TEXT,
+    PRIMARY KEY (address, chain)
+  );
 `);
 
 const s = {
@@ -221,6 +231,22 @@ const s = {
     SELECT id, created_at AS createdAt, symbol, tf AS interval, days, params, summary,
            by_direction AS byDirection, trades, equity
     FROM backtests WHERE id = ?
+  `),
+
+  upsertRugCheck: db.prepare(`
+    INSERT INTO rugchecks (address, chain, created_at, score, verdict, data)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(address, chain) DO UPDATE SET
+      created_at = excluded.created_at, score = excluded.score,
+      verdict = excluded.verdict, data = excluded.data
+  `),
+  getRugCheck: db.prepare(`
+    SELECT address, chain, created_at AS createdAt, score, verdict, data
+    FROM rugchecks WHERE address = ? AND chain = ?
+  `),
+  listRugChecks: db.prepare(`
+    SELECT address, chain, created_at AS createdAt, score, verdict
+    FROM rugchecks ORDER BY created_at DESC LIMIT ?
   `),
 };
 
@@ -553,4 +579,32 @@ export function getBacktest(id) {
     trades: safeParse(row.trades),
     equity: safeParse(row.equity),
   };
+}
+
+export function saveRugCheck(result) {
+  const chain = result.chain || "";
+  s.upsertRugCheck.run(
+    result.address,
+    chain,
+    result.createdAt || Date.now(),
+    result.score ?? null,
+    result.verdict ?? null,
+    JSON.stringify(result)
+  );
+  return result;
+}
+
+export function getRugCheck(address, chain = "") {
+  const row = s.getRugCheck.get(address, chain || "");
+  if (!row) return null;
+  return {
+    createdAt: row.createdAt,
+    score: row.score,
+    verdict: row.verdict,
+    data: safeParse(row.data),
+  };
+}
+
+export function listRugChecks(limit = 50) {
+  return s.listRugChecks.all(Math.max(1, Math.min(Number(limit) || 50, 200)));
 }

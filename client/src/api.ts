@@ -11,9 +11,14 @@ import type {
   NewsRefreshResult,
   NewsResponse,
   ProviderStatus,
+  RugCheckResult,
+  RugCheckSummary,
   ScanResult,
   Signal,
+  SignalSizerResult,
   SignalsResponse,
+  SizerResult,
+  PortfolioResult,
 } from "./types";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -110,4 +115,60 @@ export const api = {
     }),
 
   backtests: () => request<BacktestRunSummary[]>("/api/backtests"),
+
+  rugCheck: (address: string, chain = "", refresh = false) =>
+    request<RugCheckResult>(
+      `/api/rugcheck?address=${enc(address)}&chain=${enc(chain)}${refresh ? "&refresh=1" : ""}`
+    ),
+
+  rugChecks: (limit = 20) =>
+    request<RugCheckSummary[]>(`/api/rugchecks?limit=${limit}`),
+
+  size: (body: {
+    equity?: number;
+    riskPct?: number;
+    entry?: number;
+    stop?: number;
+    targets?: number[] | string[];
+    side?: string;
+    feePct?: number;
+    maxLeverage?: number;
+    confidence?: number;
+    scaleByConfidence?: boolean;
+  }) =>
+    request<SizerResult>("/api/size", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  sizeSignal: (body: {
+    symbol?: string;
+    interval?: string;
+    equity?: number;
+    riskPct?: number;
+    feePct?: number;
+    maxLeverage?: number;
+    scaleByConfidence?: boolean;
+  }) =>
+    request<SignalSizerResult>("/api/size/signal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  sizePortfolio: (body: {
+    equity?: number;
+    riskPct?: number;
+    maxTotalRiskPct?: number;
+    limit?: number;
+    scaleByConfidence?: boolean;
+    feePct?: number;
+    maxLeverage?: number;
+  }) =>
+    request<PortfolioResult>("/api/size/portfolio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
 };
