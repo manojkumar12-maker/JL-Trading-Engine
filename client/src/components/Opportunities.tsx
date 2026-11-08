@@ -12,6 +12,12 @@ const pct = (n: number | null | undefined) =>
 
 function SignalRow({ signal }: { signal: Signal }) {
   const isLong = signal.direction === "long";
+  const mtf = (signal.timeframes || [])
+    .map(
+      (t) =>
+        `${t.interval}${t.direction === "bullish" ? "↑" : t.direction === "bearish" ? "↓" : "·"}`
+    )
+    .join(" ");
   return (
     <tr className="border-t border-line/70 align-top">
       <td className="px-3 py-2 text-left">
@@ -27,6 +33,15 @@ function SignalRow({ signal }: { signal: Signal }) {
         }`}
       >
         {signal.direction}
+        <div className="text-[10px] font-normal normal-case text-slate-500">
+          {signal.alignment ?? "—"}
+        </div>
+      </td>
+      <td className="px-3 py-2 text-left text-slate-300">
+        {mtf || "—"}
+        <div className="text-[10px] text-slate-500">
+          bias {signal.biasScore != null ? `${signal.biasScore > 0 ? "+" : ""}${signal.biasScore}` : "—"}
+        </div>
       </td>
       <td
         className={`px-3 py-2 text-right font-semibold ${
@@ -47,7 +62,11 @@ function SignalRow({ signal }: { signal: Signal }) {
         {signal.plan ? signal.plan.targets.map((t) => fmt(t)).join(" / ") : "—"}
       </td>
       <td className="px-3 py-2 text-left text-slate-400">
-        {signal.reasons?.length ? signal.reasons.join(" · ") : "—"}
+        {signal.layers?.length
+          ? signal.layers.map((l) => l.detail).join(" · ")
+          : signal.reasons?.length
+            ? signal.reasons.join(" · ")
+            : "—"}
       </td>
     </tr>
   );
@@ -55,7 +74,7 @@ function SignalRow({ signal }: { signal: Signal }) {
 
 export default function Opportunities() {
   const qc = useQueryClient();
-  const [interval, setInterval] = useState("1h");
+  const [interval, setInterval] = useState("5m");
   const [minScore, setMinScore] = useState(0);
   const [direction, setDirection] = useState("");
 
@@ -66,7 +85,7 @@ export default function Opportunities() {
   });
 
   const scanMut = useMutation({
-    mutationFn: () => api.scan({ interval, limit: 15, minScore: 25 }),
+    mutationFn: () => api.scan({ interval, limit: 8, minScore: 25 }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["signals"] }),
   });
 
@@ -89,7 +108,7 @@ export default function Opportunities() {
             value={interval}
             onChange={(e) => setInterval(e.target.value)}
           >
-            {["15m", "1h", "4h", "1d"].map((i) => (
+            {["5m", "15m", "1h", "4h"].map((i) => (
               <option key={i} value={i}>
                 {i}
               </option>
@@ -143,12 +162,13 @@ export default function Opportunities() {
             <tr className="text-slate-400">
               <th className="px-3 py-2 text-left">Symbol</th>
               <th className="px-3 py-2 text-left">Dir</th>
+              <th className="px-3 py-2 text-left">MTF</th>
               <th className="px-3 py-2 text-right">Score</th>
               <th className="px-3 py-2 text-right">Conf</th>
               <th className="px-3 py-2 text-right">Entry</th>
               <th className="px-3 py-2 text-right">Stop</th>
               <th className="px-3 py-2 text-right">Targets</th>
-              <th className="px-3 py-2 text-left">Why</th>
+              <th className="px-3 py-2 text-left">Layers</th>
             </tr>
           </thead>
           <tbody>
@@ -157,7 +177,7 @@ export default function Opportunities() {
             ))}
             {!signals.length && (
               <tr>
-                <td colSpan={8} className="px-3 py-4 text-slate-500">
+                <td colSpan={9} className="px-3 py-4 text-slate-500">
                   No signals yet — run a scan.
                 </td>
               </tr>
@@ -167,7 +187,8 @@ export default function Opportunities() {
       </div>
 
       <p className="mt-2 text-xs text-slate-500">
-        Heuristic multi-indicator scores and ATR-based levels — not financial advice.
+        5m entry signals with HTF→LTF trend alignment (6h · 1h · 15m · 5m), all indicator layers,
+        ATR-based levels — not financial advice.
       </p>
     </section>
   );

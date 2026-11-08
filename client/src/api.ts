@@ -1,6 +1,8 @@
 import type {
   Agent,
   AgentInput,
+  BacktestResult,
+  BacktestRunSummary,
   DatasetMeta,
   KlineResponse,
   LogEntry,
@@ -92,4 +94,20 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }),
+
+  runBacktest: (body: {
+    symbol?: string;
+    interval?: string;
+    days?: number;
+    minScore?: number;
+    stopAtr?: number;
+    tpAtr?: number;
+  }) =>
+    request<BacktestResult>("/api/backtest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  backtests: () => request<BacktestRunSummary[]>("/api/backtests"),
 };

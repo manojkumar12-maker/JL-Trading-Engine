@@ -149,6 +149,29 @@ export interface SignalIndicators {
   momentum20Pct: number;
 }
 
+export interface TimeframeRead {
+  interval: string;
+  direction: string;
+  score: number;
+  rsi: number | null;
+  macdHist: number;
+  atr: number;
+}
+
+export interface SignalLayer {
+  name: string;
+  detail: string;
+  kind: string;
+}
+
+export interface NewsSentiment {
+  score: number;
+  bullish: number;
+  bearish: number;
+  neutral: number;
+  articles: number;
+}
+
 export interface Signal {
   symbol: string;
   interval: string;
@@ -158,6 +181,12 @@ export interface Signal {
   direction: "long" | "short" | "neutral";
   confidence: number;
   higherTrend?: string | null;
+  higherInterval?: string | null;
+  alignment?: string | null;
+  biasScore?: number | null;
+  timeframes?: TimeframeRead[];
+  layers?: SignalLayer[];
+  news?: NewsSentiment | null;
   reasons: string[];
   indicators: SignalIndicators;
   plan: SignalPlan | null;
@@ -190,4 +219,57 @@ export interface ScanResult {
   generatedAt: number;
   movers: Mover[];
   opportunities: Signal[];
+}
+
+export interface BacktestTrade {
+  symbol: string;
+  direction: string;
+  entryTime: number;
+  exitTime: number;
+  entry: number;
+  stop: number;
+  takeProfit: number;
+  exit: number;
+  outcome: string;
+  r: number;
+  score: number;
+  bars: number;
+}
+
+export interface BacktestSummary {
+  trades: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  avgR: number;
+  totalR: number;
+  profitFactor: number | null;
+  expectancy: number;
+  maxDrawdownR: number;
+  bestR: number;
+  worstR: number;
+}
+
+export interface BacktestResult {
+  id?: string;
+  createdAt?: number;
+  symbol: string;
+  interval: string;
+  days: number;
+  candles: number;
+  params: { minScore: number; stopAtr: number; tpAtr: number };
+  summary: BacktestSummary;
+  byDirection: { direction: string; trades: number; wins: number; winRate: number }[];
+  equity: { time: number; r: number }[];
+  trades: BacktestTrade[];
+}
+
+export interface BacktestRunSummary {
+  id: string;
+  createdAt: number;
+  symbol: string;
+  interval: string;
+  days: number;
+  params: { minScore?: number; stopAtr?: number; tpAtr?: number };
+  summary: BacktestSummary;
 }

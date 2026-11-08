@@ -9,6 +9,7 @@ import Datasets from "./components/Datasets";
 import Logs from "./components/Logs";
 import News from "./components/News";
 import Opportunities from "./components/Opportunities";
+import Backtest from "./components/Backtest";
 import { cardCls } from "./ui";
 
 export default function App() {
@@ -37,6 +38,8 @@ export default function App() {
         </section>
 
         <Opportunities />
+
+        <Backtest />
 
         <News />
 

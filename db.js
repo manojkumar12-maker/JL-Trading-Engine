@@ -1,4 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
+import { randomUUID } from "node:crypto";
 import { mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { paths } from "./lib/env.js";
@@ -100,6 +101,27 @@ db.exec(`
   );
 `);
 
+try {
+  db.exec("ALTER TABLE signals ADD COLUMN meta TEXT");
+} catch {
+  /* column already exists */
+}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS backtests (
+    id TEXT PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    symbol TEXT,
+    tf TEXT,
+    days INTEGER,
+    params TEXT,
+    summary TEXT,
+    by_direction TEXT,
+    trades TEXT,
+    equity TEXT
+  );
+`);
+
 const s = {
   upsertCandle: db.prepare(`
     INSERT INTO candles (symbol, tf, open_time, open, high, low, close, volume, source)
@@ -175,15 +197,30 @@ const s = {
   upsertSignal: db.prepare(`
     INSERT INTO signals
       (symbol, tf, created_at, price, score, direction, confidence, entry, stop,
-       targets, reasons, indicators, source, change_pct, quote_volume, oi_change_pct, heat)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       targets, reasons, indicators, source, change_pct, quote_volume, oi_change_pct, heat, meta)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(symbol, tf) DO UPDATE SET
       created_at = excluded.created_at, price = excluded.price, score = excluded.score,
       direction = excluded.direction, confidence = excluded.confidence,
       entry = excluded.entry, stop = excluded.stop, targets = excluded.targets,
       reasons = excluded.reasons, indicators = excluded.indicators, source = excluded.source,
       change_pct = excluded.change_pct, quote_volume = excluded.quote_volume,
-      oi_change_pct = excluded.oi_change_pct, heat = excluded.heat
+      oi_change_pct = excluded.oi_change_pct, heat = excluded.heat, meta = excluded.meta
+  `),
+
+  insertBacktest: db.prepare(`
+    INSERT INTO backtests
+      (id, created_at, symbol, tf, days, params, summary, by_direction, trades, equity)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `),
+  listBacktests: db.prepare(`
+    SELECT id, created_at AS createdAt, symbol, tf AS interval, days, params, summary
+    FROM backtests ORDER BY created_at DESC LIMIT 100
+  `),
+  getBacktest: db.prepare(`
+    SELECT id, created_at AS createdAt, symbol, tf AS interval, days, params, summary,
+           by_direction AS byDirection, trades, equity
+    FROM backtests WHERE id = ?
   `),
 };
 
@@ -405,7 +442,15 @@ export function saveSignals(list) {
         sig.changePct ?? null,
         sig.quoteVolume ?? null,
         sig.oiChangePct ?? null,
-        sig.heat ?? null
+        sig.heat ?? null,
+        JSON.stringify({
+          timeframes: sig.timeframes || [],
+          layers: sig.layers || [],
+          alignment: sig.alignment || null,
+          biasScore: sig.biasScore ?? null,
+          news: sig.news || null,
+          higherTrend: sig.higherTrend ?? null,
+        })
       );
     }
     db.exec("COMMIT");
@@ -439,24 +484,73 @@ export function listSignals({ limit = 50, direction = "", minScore = 0 } = {}) {
       `SELECT symbol, tf AS interval, created_at AS updatedAt, price, score, direction,
               confidence, entry, stop, targets, reasons, indicators, source,
               change_pct AS changePct, quote_volume AS quoteVolume,
-              oi_change_pct AS oiChangePct, heat
+              oi_change_pct AS oiChangePct, heat, meta
        FROM signals ${where}
        ORDER BY ABS(score) * confidence DESC LIMIT ?`
     )
     .all(...params, capped);
 
-  return rows.map((row) => ({
+  return rows.map((row) => {
+    const { meta, ...rest } = row;
+    const extra = safeParse(meta) || {};
+    return {
+      ...rest,
+      targets: safeParse(row.targets),
+      reasons: safeParse(row.reasons),
+      indicators: safeParse(row.indicators),
+      timeframes: extra.timeframes || [],
+      layers: extra.layers || [],
+      alignment: extra.alignment || null,
+      biasScore: extra.biasScore ?? null,
+      news: extra.news || null,
+      higherTrend: extra.higherTrend ?? null,
+      plan:
+        row.entry == null
+          ? null
+          : {
+              entry: row.entry,
+              stop: row.stop,
+              targets: safeParse(row.targets),
+            },
+    };
+  });
+}
+
+export function saveBacktest(run) {
+  const id = randomUUID();
+  const createdAt = Date.now();
+  s.insertBacktest.run(
+    id,
+    createdAt,
+    run.symbol,
+    run.interval,
+    run.days,
+    JSON.stringify(run.params || {}),
+    JSON.stringify(run.summary || {}),
+    JSON.stringify(run.byDirection || []),
+    JSON.stringify(run.trades || []),
+    JSON.stringify(run.equity || [])
+  );
+  return { id, createdAt };
+}
+
+export function listBacktests() {
+  return s.listBacktests.all().map((row) => ({
     ...row,
-    targets: safeParse(row.targets),
-    reasons: safeParse(row.reasons),
-    indicators: safeParse(row.indicators),
-    plan:
-      row.entry == null
-        ? null
-        : {
-            entry: row.entry,
-            stop: row.stop,
-            targets: safeParse(row.targets),
-          },
+    params: safeParse(row.params),
+    summary: safeParse(row.summary),
   }));
+}
+
+export function getBacktest(id) {
+  const row = s.getBacktest.get(id);
+  if (!row) return null;
+  return {
+    ...row,
+    params: safeParse(row.params),
+    summary: safeParse(row.summary),
+    byDirection: safeParse(row.byDirection),
+    trades: safeParse(row.trades),
+    equity: safeParse(row.equity),
+  };
 }

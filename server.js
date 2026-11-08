@@ -8,12 +8,15 @@ import {
   countNews,
   deleteAgent,
   getAgent,
+  getBacktest,
   getDataset,
   insertAgent,
   listAgents,
+  listBacktests,
   listDatasets,
   listLogs,
   listSignals,
+  saveBacktest,
   saveSignals,
 } from "./db.js";
 import {
@@ -26,7 +29,8 @@ import {
 } from "./lib/crypto/index.js";
 import { CANONICAL_INTERVALS } from "./lib/crypto/interval.js";
 import { getNews, newsProviderStatus, refreshNews } from "./lib/news/index.js";
-import { analyzeSymbol } from "./lib/signals/engine.js";
+import { runBacktest } from "./lib/backtest/index.js";
+import { analyzeSymbolMTF } from "./lib/signals/mtf.js";
 import { scan } from "./lib/signals/screener.js";
 import { getMovers } from "./lib/signals/universe.js";
 import { ACTIONS, runAgent } from "./lib/agents.js";
@@ -241,7 +245,7 @@ app.get("/api/signal", async (req, reply) => {
     return { error: "symbol is required" };
   }
   try {
-    const signal = await analyzeSymbol(symbol, interval);
+    const signal = await analyzeSymbolMTF(symbol, interval);
     if (!signal) {
       reply.code(422);
       return { error: "not enough candle data to analyze this symbol" };
@@ -268,7 +272,7 @@ app.post("/api/scan", async (req, reply) => {
   const body = req.body || {};
   try {
     return await scan({
-      interval: body.interval || "1h",
+      interval: body.interval || "5m",
       limit: body.limit,
       minScore: body.minScore,
       minVolumeQuote: body.minVolumeQuote,
@@ -278,6 +282,38 @@ app.post("/api/scan", async (req, reply) => {
     reply.code(502);
     return { error: err.message };
   }
+});
+
+/* ---------------- backtesting ---------------- */
+
+app.post("/api/backtest", async (req, reply) => {
+  const body = req.body || {};
+  try {
+    const result = await runBacktest({
+      symbol: body.symbol,
+      interval: body.interval || "5m",
+      days: body.days,
+      minScore: body.minScore,
+      stopAtr: body.stopAtr,
+      tpAtr: body.tpAtr,
+    });
+    const saved = saveBacktest(result);
+    return { ...result, id: saved.id, createdAt: saved.createdAt };
+  } catch (err) {
+    reply.code(502);
+    return { error: err.message };
+  }
+});
+
+app.get("/api/backtests", async () => listBacktests());
+
+app.get("/api/backtest/:id", async (req, reply) => {
+  const run = getBacktest(req.params.id);
+  if (!run) {
+    reply.code(404);
+    return { error: "not found" };
+  }
+  return run;
 });
 
 /* ---------------- logs ---------------- */
