@@ -36,6 +36,7 @@ import { CANONICAL_INTERVALS } from "./lib/crypto/interval.js";
 import { getTickerPrice } from "./lib/crypto/price.js";
 import { getNews, newsProviderStatus, refreshNews } from "./lib/news/index.js";
 import { runBacktest } from "./lib/backtest/index.js";
+import { calibrate } from "./lib/calibration/index.js";
 import { getEquityState, setBalance } from "./lib/equity/index.js";
 import { logger } from "./lib/logger.js";
 import {
@@ -357,6 +358,28 @@ app.post("/api/backtest", async (req, reply) => {
 });
 
 app.get("/api/backtests", async () => listBacktests());
+
+app.post("/api/calibrate", async (req, reply) => {
+  const body = req.body || {};
+  try {
+    return await calibrate({
+      symbol: body.symbol,
+      interval: body.interval,
+      days: body.days,
+      stopAtr: body.stopAtr,
+      tpAtr: body.tpAtr,
+      minScore: body.minScore,
+      minConfidence: body.minConfidence,
+      targetWinRate: body.targetWinRate,
+      targetProfitFactor: body.targetProfitFactor,
+      minTrades: body.minTrades,
+      split: body.split,
+    });
+  } catch (err) {
+    reply.code(502);
+    return { error: err.message };
+  }
+});
 
 app.get("/api/backtest/:id", async (req, reply) => {
   const run = getBacktest(req.params.id);

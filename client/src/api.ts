@@ -4,6 +4,7 @@ import type {
   AutoTradeResult,
   BacktestResult,
   BacktestRunSummary,
+  CalibrationResult,
   DatasetMeta,
   ExecuterOrder,
   ExecuterPlaceResult,
@@ -123,6 +124,20 @@ export const api = {
     }),
 
   backtests: () => request<BacktestRunSummary[]>("/api/backtests"),
+
+  calibrate: (body: {
+    symbol?: string;
+    interval?: string;
+    days?: number;
+    targetWinRate?: number;
+    targetProfitFactor?: number;
+    minTrades?: number;
+  }) =>
+    request<CalibrationResult>("/api/calibrate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
 
   rugCheck: (address: string, chain = "", refresh = false) =>
     request<RugCheckResult>(

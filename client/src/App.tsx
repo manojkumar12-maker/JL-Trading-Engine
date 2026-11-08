@@ -11,6 +11,7 @@ import Logs from "./components/Logs";
 import News from "./components/News";
 import Opportunities from "./components/Opportunities";
 import Backtest from "./components/Backtest";
+import Calibration from "./components/Calibration";
 import RugCheck from "./components/RugCheck";
 import Sizer from "./components/Sizer";
 import Executer from "./components/Executer";
@@ -49,6 +50,8 @@ export default function App() {
         <Opportunities />
 
         <Backtest />
+
+        <Calibration />
 
         <Sizer />
 

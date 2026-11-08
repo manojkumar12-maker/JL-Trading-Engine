@@ -485,3 +485,40 @@ export interface EventSummary {
   byCategory: { category: string; c: number }[];
   byLevel: { level: string; c: number }[];
 }
+
+export interface TradeMetrics {
+  trades: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  avgR: number;
+  totalR: number;
+  profitFactor: number | null;
+  expectancy: number;
+  maxDrawdownR: number;
+}
+
+export interface CalibrationConfig {
+  params: { stopAtr: number; tpAtr: number; minScore: number; minConfidence: number };
+  all: TradeMetrics;
+  inSample: TradeMetrics;
+  outOfSample: TradeMetrics;
+  meetsTarget: boolean;
+}
+
+export interface CalibrationResult {
+  symbol: string;
+  interval: string;
+  days: number;
+  candles: number;
+  signals: number;
+  splitTime: number;
+  splitPct: number;
+  target: { winRate: number; profitFactor: number; minTrades: number };
+  gridSize: number;
+  evaluated: number;
+  feasible: boolean;
+  recommended: CalibrationConfig[];
+  top: CalibrationConfig[];
+  note: string;
+}
