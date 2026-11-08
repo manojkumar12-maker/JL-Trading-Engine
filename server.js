@@ -17,6 +17,7 @@ import {
   listLogs,
   listRugChecks,
   listSignals,
+  resetPaperTrading,
   saveBacktest,
   saveSignals,
 } from "./db.js";
@@ -479,6 +480,11 @@ app.get("/api/executer/balance", async (req, reply) => {
     reply.code(400);
     return { error: err.message };
   }
+});
+
+app.post("/api/executer/reset", async () => {
+  resetPaperTrading();
+  return { ok: true, resetAt: Date.now() };
 });
 
 /* ---------------- rug check ---------------- */

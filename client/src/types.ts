@@ -386,7 +386,9 @@ export interface ExecuterStatus {
   autoTradeEnabled: boolean;
   killSwitch: boolean;
   exchange: string;
-  binance: { testnet: boolean; base: string; configured: boolean };
+  market: string;
+  maxLeverage: number;
+  binance: { testnet: boolean; base: string; futuresBase?: string; configured: boolean };
   limits: {
     maxOrderNotional: number;
     maxOpenPositions: number;

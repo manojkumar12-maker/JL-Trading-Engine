@@ -107,6 +107,12 @@ try {
   /* column already exists */
 }
 
+try {
+  db.exec("ALTER TABLE positions ADD COLUMN fee REAL");
+} catch {
+  /* column already exists */
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS backtests (
     id TEXT PRIMARY KEY,
@@ -315,24 +321,24 @@ const s = {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
   updatePosition: db.prepare(`
-    UPDATE positions SET status = ?, closed_at = ?, exit_price = ?, pnl = ? WHERE id = ?
+    UPDATE positions SET status = ?, closed_at = ?, exit_price = ?, pnl = ?, fee = ? WHERE id = ?
   `),
   getPosition: db.prepare(`
     SELECT id, order_id AS orderId, symbol, side, quantity, entry, stop,
            take_profit AS takeProfit, status, mode, opened_at AS openedAt,
-           closed_at AS closedAt, exit_price AS exitPrice, pnl
+           closed_at AS closedAt, exit_price AS exitPrice, pnl, fee
     FROM positions WHERE id = ?
   `),
   listPositions: db.prepare(`
     SELECT id, order_id AS orderId, symbol, side, quantity, entry, stop,
            take_profit AS takeProfit, status, mode, opened_at AS openedAt,
-           closed_at AS closedAt, exit_price AS exitPrice, pnl
+           closed_at AS closedAt, exit_price AS exitPrice, pnl, fee
     FROM positions ORDER BY opened_at DESC LIMIT ?
   `),
   listOpenPositions: db.prepare(`
     SELECT id, order_id AS orderId, symbol, side, quantity, entry, stop,
            take_profit AS takeProfit, status, mode, opened_at AS openedAt,
-           closed_at AS closedAt, exit_price AS exitPrice, pnl
+           closed_at AS closedAt, exit_price AS exitPrice, pnl, fee
     FROM positions WHERE status = 'open'
   `),
   getSetting: db.prepare(`SELECT value FROM settings WHERE key = ?`),
@@ -769,6 +775,7 @@ export function updatePosition(id, fields = {}) {
     fields.closedAt ?? Date.now(),
     fields.exitPrice ?? null,
     fields.pnl ?? null,
+    fields.fee ?? null,
     id
   );
 }
@@ -784,7 +791,7 @@ export function listPositions({ status = "", limit = 100 } = {}) {
       .prepare(
         `SELECT id, order_id AS orderId, symbol, side, quantity, entry, stop,
                 take_profit AS takeProfit, status, mode, opened_at AS openedAt,
-                closed_at AS closedAt, exit_price AS exitPrice, pnl
+                closed_at AS closedAt, exit_price AS exitPrice, pnl, fee
          FROM positions WHERE status = ? ORDER BY opened_at DESC LIMIT ?`
       )
       .all(status, capped);
@@ -810,4 +817,9 @@ export function dailyRealizedPnl() {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
   return s.dailyPnl.get(start.getTime()).p;
+}
+
+export function resetPaperTrading() {
+  db.exec("DELETE FROM positions WHERE mode = 'paper'");
+  db.exec("DELETE FROM orders WHERE mode = 'paper'");
 }

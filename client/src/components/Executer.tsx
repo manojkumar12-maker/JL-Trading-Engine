@@ -113,6 +113,7 @@ export default function Executer() {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className={`${titleCls} mb-0`}>Executer</h2>
         <div className="flex flex-wrap items-center gap-2">
+          <Chip label="FUTURES" on tone="good" />
           <Chip label={status?.liveEnabled ? "LIVE ENABLED" : "PAPER ONLY"} on={!!status?.liveEnabled} tone="bad" />
           <Chip label={status?.autoTradeEnabled ? "AUTO ON" : "AUTO OFF"} on={!!status?.autoTradeEnabled} tone="good" />
           <Chip
@@ -132,6 +133,7 @@ export default function Executer() {
 
       <div className="mb-3 flex flex-wrap gap-2 text-xs text-slate-500">
         <span className={badgeCls}>risk limits</span>
+        <span>lev ≤ {status?.maxLeverage ?? "—"}x</span>
         <span>max order {money(status?.limits.maxOrderNotional)}</span>
         <span>max open {status?.limits.maxOpenPositions}</span>
         <span>max exposure {money(status?.limits.maxTotalExposure)}</span>
@@ -352,9 +354,9 @@ export default function Executer() {
       </div>
 
       <p className="mt-3 text-xs text-slate-500">
-        Paper fills at live market price; live orders are Binance spot market orders. Live trading is
-        disabled unless ENABLE_LIVE_TRADING=true with API keys, and every live order requires confirm.
-        Not financial advice.
+        Paper fills at live market price. Live orders are Binance USDⓈ-M futures market orders with
+        leverage set per order. Live trading is disabled unless ENABLE_LIVE_TRADING=true with API
+        keys, and every live order requires confirm. Not financial advice.
       </p>
     </section>
   );
