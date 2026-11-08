@@ -1,9 +1,14 @@
 import type {
   Agent,
   AgentInput,
+  AutoTradeResult,
   BacktestResult,
   BacktestRunSummary,
   DatasetMeta,
+  ExecuterOrder,
+  ExecuterPlaceResult,
+  ExecuterPosition,
+  ExecuterStatus,
   KlineResponse,
   LogEntry,
   MarketsResponse,
@@ -167,6 +172,80 @@ export const api = {
     maxLeverage?: number;
   }) =>
     request<PortfolioResult>("/api/size/portfolio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  executerStatus: () => request<ExecuterStatus>("/api/executer/status"),
+
+  executerOrders: (limit = 50) =>
+    request<ExecuterOrder[]>(`/api/executer/orders?limit=${limit}`),
+
+  executerPositions: (status = "", limit = 100) =>
+    request<ExecuterPosition[]>(
+      `/api/executer/positions?status=${enc(status)}&limit=${limit}`
+    ),
+
+  placeOrder: (body: {
+    symbol?: string;
+    side?: string;
+    quantity?: number;
+    notional?: number;
+    entry?: number;
+    stop?: number;
+    takeProfit?: number;
+    mode?: string;
+    confirm?: boolean;
+  }) =>
+    request<ExecuterPlaceResult>("/api/executer/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+
+  executeFromSignal: (body: {
+    symbol?: string;
+    interval?: string;
+    equity?: number;
+    riskPct?: number;
+    feePct?: number;
+    maxLeverage?: number;
+    mode?: string;
+    confirm?: boolean;
+  }) =>
+    request<ExecuterPlaceResult & { signal: unknown; size: SizerResult }>(
+      "/api/executer/from-signal",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    ),
+
+  closeExecPosition: (id: string, price?: number) =>
+    request<ExecuterPosition>(`/api/executer/positions/${enc(id)}/close`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ price }),
+    }),
+
+  setKillSwitch: (enabled: boolean) =>
+    request<{ killSwitch: boolean }>("/api/executer/kill", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    }),
+
+  autoTrade: (body: {
+    equity?: number;
+    riskPct?: number;
+    interval?: string;
+    limit?: number;
+    mode?: string;
+    confirm?: boolean;
+  }) =>
+    request<AutoTradeResult>("/api/executer/auto", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

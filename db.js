@@ -130,6 +130,49 @@ db.exec(`
     data TEXT,
     PRIMARY KEY (address, chain)
   );
+
+  CREATE TABLE IF NOT EXISTS orders (
+    id TEXT PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    mode TEXT,
+    exchange TEXT,
+    symbol TEXT,
+    side TEXT,
+    type TEXT,
+    quantity REAL,
+    price REAL,
+    notional REAL,
+    stop REAL,
+    take_profit REAL,
+    status TEXT,
+    source TEXT,
+    filled_price REAL,
+    filled_at INTEGER,
+    error TEXT,
+    raw TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS positions (
+    id TEXT PRIMARY KEY,
+    order_id TEXT,
+    symbol TEXT,
+    side TEXT,
+    quantity REAL,
+    entry REAL,
+    stop REAL,
+    take_profit REAL,
+    status TEXT,
+    mode TEXT,
+    opened_at INTEGER,
+    closed_at INTEGER,
+    exit_price REAL,
+    pnl REAL
+  );
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
 `);
 
 const s = {
@@ -247,6 +290,58 @@ const s = {
   listRugChecks: db.prepare(`
     SELECT address, chain, created_at AS createdAt, score, verdict
     FROM rugchecks ORDER BY created_at DESC LIMIT ?
+  `),
+
+  insertOrder: db.prepare(`
+    INSERT INTO orders
+      (id, created_at, mode, exchange, symbol, side, type, quantity, price, notional,
+       stop, take_profit, status, source, filled_price, filled_at, error, raw)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `),
+  updateOrder: db.prepare(`
+    UPDATE orders SET status = ?, filled_price = ?, filled_at = ?, error = ?, raw = ? WHERE id = ?
+  `),
+  listOrders: db.prepare(`
+    SELECT id, created_at AS createdAt, mode, exchange, symbol, side, type, quantity, price,
+           notional, stop, take_profit AS takeProfit, status, source,
+           filled_price AS filledPrice, filled_at AS filledAt, error
+    FROM orders ORDER BY created_at DESC LIMIT ?
+  `),
+
+  insertPosition: db.prepare(`
+    INSERT INTO positions
+      (id, order_id, symbol, side, quantity, entry, stop, take_profit, status, mode,
+       opened_at, closed_at, exit_price, pnl)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `),
+  updatePosition: db.prepare(`
+    UPDATE positions SET status = ?, closed_at = ?, exit_price = ?, pnl = ? WHERE id = ?
+  `),
+  getPosition: db.prepare(`
+    SELECT id, order_id AS orderId, symbol, side, quantity, entry, stop,
+           take_profit AS takeProfit, status, mode, opened_at AS openedAt,
+           closed_at AS closedAt, exit_price AS exitPrice, pnl
+    FROM positions WHERE id = ?
+  `),
+  listPositions: db.prepare(`
+    SELECT id, order_id AS orderId, symbol, side, quantity, entry, stop,
+           take_profit AS takeProfit, status, mode, opened_at AS openedAt,
+           closed_at AS closedAt, exit_price AS exitPrice, pnl
+    FROM positions ORDER BY opened_at DESC LIMIT ?
+  `),
+  listOpenPositions: db.prepare(`
+    SELECT id, order_id AS orderId, symbol, side, quantity, entry, stop,
+           take_profit AS takeProfit, status, mode, opened_at AS openedAt,
+           closed_at AS closedAt, exit_price AS exitPrice, pnl
+    FROM positions WHERE status = 'open'
+  `),
+  getSetting: db.prepare(`SELECT value FROM settings WHERE key = ?`),
+  setSetting: db.prepare(`
+    INSERT INTO settings (key, value) VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `),
+  dailyPnl: db.prepare(`
+    SELECT COALESCE(SUM(pnl), 0) AS p FROM positions WHERE status = 'closed' AND closed_at >= ?
   `),
 };
 
@@ -607,4 +702,112 @@ export function getRugCheck(address, chain = "") {
 
 export function listRugChecks(limit = 50) {
   return s.listRugChecks.all(Math.max(1, Math.min(Number(limit) || 50, 200)));
+}
+
+export function saveOrder(order) {
+  s.insertOrder.run(
+    order.id,
+    order.createdAt || Date.now(),
+    order.mode || "paper",
+    order.exchange || null,
+    order.symbol || null,
+    order.side || null,
+    order.type || "MARKET",
+    order.quantity ?? null,
+    order.price ?? null,
+    order.notional ?? null,
+    order.stop ?? null,
+    order.takeProfit ?? null,
+    order.status || "new",
+    order.source || "manual",
+    order.filledPrice ?? null,
+    order.filledAt ?? null,
+    order.error ?? null,
+    order.raw ? JSON.stringify(order.raw) : null
+  );
+  return order;
+}
+
+export function updateOrder(id, fields = {}) {
+  s.updateOrder.run(
+    fields.status ?? null,
+    fields.filledPrice ?? null,
+    fields.filledAt ?? null,
+    fields.error ?? null,
+    fields.raw ? JSON.stringify(fields.raw) : null,
+    id
+  );
+}
+
+export function listOrders(limit = 50) {
+  return s.listOrders.all(Math.max(1, Math.min(Number(limit) || 50, 200)));
+}
+
+export function savePosition(position) {
+  s.insertPosition.run(
+    position.id,
+    position.orderId || null,
+    position.symbol,
+    position.side,
+    position.quantity,
+    position.entry,
+    position.stop ?? null,
+    position.takeProfit ?? null,
+    position.status || "open",
+    position.mode || "paper",
+    position.openedAt || Date.now(),
+    position.closedAt ?? null,
+    position.exitPrice ?? null,
+    position.pnl ?? null
+  );
+  return position;
+}
+
+export function updatePosition(id, fields = {}) {
+  s.updatePosition.run(
+    fields.status || "closed",
+    fields.closedAt ?? Date.now(),
+    fields.exitPrice ?? null,
+    fields.pnl ?? null,
+    id
+  );
+}
+
+export function getPositionById(id) {
+  return s.getPosition.get(id) || null;
+}
+
+export function listPositions({ status = "", limit = 100 } = {}) {
+  const capped = Math.max(1, Math.min(Number(limit) || 100, 200));
+  if (status) {
+    return db
+      .prepare(
+        `SELECT id, order_id AS orderId, symbol, side, quantity, entry, stop,
+                take_profit AS takeProfit, status, mode, opened_at AS openedAt,
+                closed_at AS closedAt, exit_price AS exitPrice, pnl
+         FROM positions WHERE status = ? ORDER BY opened_at DESC LIMIT ?`
+      )
+      .all(status, capped);
+  }
+  return s.listPositions.all(capped);
+}
+
+export function listOpenPositions() {
+  return s.listOpenPositions.all();
+}
+
+export function getSetting(key, fallback = null) {
+  const row = s.getSetting.get(key);
+  return row ? row.value : fallback;
+}
+
+export function setSetting(key, value) {
+  s.setSetting.run(key, String(value));
+  return String(value);
+}
+
+export function dailyRealizedPnl() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  return s.dailyPnl.get(start.getTime()).p;
 }

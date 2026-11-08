@@ -12,6 +12,7 @@ import Opportunities from "./components/Opportunities";
 import Backtest from "./components/Backtest";
 import RugCheck from "./components/RugCheck";
 import Sizer from "./components/Sizer";
+import Executer from "./components/Executer";
 import { cardCls } from "./ui";
 
 export default function App() {
@@ -46,6 +47,8 @@ export default function App() {
         <Backtest />
 
         <Sizer />
+
+        <Executer />
 
         <News />
 

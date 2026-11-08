@@ -29,8 +29,21 @@ import {
   searchMarkets,
 } from "./lib/crypto/index.js";
 import { CANONICAL_INTERVALS } from "./lib/crypto/interval.js";
+import { getTickerPrice } from "./lib/crypto/price.js";
 import { getNews, newsProviderStatus, refreshNews } from "./lib/news/index.js";
 import { runBacktest } from "./lib/backtest/index.js";
+import {
+  autoTrade,
+  closePosition,
+  executeFromSignal,
+  executerStatus,
+  getOrders,
+  getPositions,
+  liveBalances,
+  placeOrder,
+  refreshPaperPositions,
+  setKillSwitch,
+} from "./lib/executer/index.js";
 import { rugCheck } from "./lib/rug/index.js";
 import {
   sizeFromSignal,
@@ -114,8 +127,21 @@ app.get("/api/history", async (req, reply) => {
   }
 });
 
-app.get("/api/candles", async (req, reply) => {
-  const { symbol, interval = "1h", limit = "500" } = req.query || {};
+app.get("/api/price", async (req, reply) => {
+  const { symbol } = req.query || {};
+  if (!symbol) {
+    reply.code(400);
+    return { error: "symbol is required" };
+  }
+  try {
+    return await getTickerPrice(symbol);
+  } catch (err) {
+    reply.code(502);
+    return { error: err.message };
+  }
+});
+
+app.get("/api/candles", async (req, reply) => {  const { symbol, interval = "1h", limit = "500" } = req.query || {};
   if (!symbol) {
     reply.code(400);
     return { error: "symbol is required" };
@@ -374,6 +400,87 @@ app.post("/api/size/portfolio", async (req, reply) => {
   }
 });
 
+/* ---------------- executer ---------------- */
+
+app.get("/api/executer/status", async () => executerStatus());
+
+app.get("/api/executer/orders", async (req) => {
+  const { limit = "50" } = req.query || {};
+  return getOrders(limit);
+});
+
+app.get("/api/executer/positions", async (req) => {
+  const { status = "", limit = "100" } = req.query || {};
+  return getPositions({ status, limit });
+});
+
+app.post("/api/executer/order", async (req, reply) => {
+  try {
+    return await placeOrder(req.body || {});
+  } catch (err) {
+    reply.code(400);
+    return { error: err.message };
+  }
+});
+
+app.post("/api/executer/from-signal", async (req, reply) => {
+  const body = req.body || {};
+  try {
+    return await executeFromSignal({
+      symbol: body.symbol,
+      interval: body.interval || "5m",
+      equity: body.equity,
+      riskPct: body.riskPct,
+      feePct: body.feePct,
+      maxLeverage: body.maxLeverage,
+      mode: body.mode,
+      confirm: !!body.confirm,
+    });
+  } catch (err) {
+    reply.code(400);
+    return { error: err.message };
+  }
+});
+
+app.post("/api/executer/positions/:id/close", async (req, reply) => {
+  try {
+    return await closePosition(req.params.id, req.body?.price);
+  } catch (err) {
+    reply.code(400);
+    return { error: err.message };
+  }
+});
+
+app.post("/api/executer/kill", async (req) => {
+  return { killSwitch: setKillSwitch(!!req.body?.enabled) };
+});
+
+app.post("/api/executer/auto", async (req, reply) => {
+  const body = req.body || {};
+  try {
+    return await autoTrade({
+      equity: body.equity,
+      riskPct: body.riskPct,
+      interval: body.interval || "5m",
+      limit: body.limit,
+      mode: body.mode,
+      confirm: !!body.confirm,
+    });
+  } catch (err) {
+    reply.code(400);
+    return { error: err.message };
+  }
+});
+
+app.get("/api/executer/balance", async (req, reply) => {
+  try {
+    return await liveBalances();
+  } catch (err) {
+    reply.code(400);
+    return { error: err.message };
+  }
+});
+
 /* ---------------- rug check ---------------- */
 
 app.get("/api/rugcheck", async (req, reply) => {
@@ -419,6 +526,10 @@ if (hasBuild) {
 await app.listen({ port: PORT, host: "0.0.0.0" });
 attachWebSocket(app.server);
 startScheduler();
+
+setInterval(() => {
+  refreshPaperPositions().catch(() => {});
+}, 10_000);
 
 const stop = async () => {
   await app.close();

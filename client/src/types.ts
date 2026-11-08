@@ -380,3 +380,69 @@ export interface SignalSizerResult {
   };
   size: SizerResult;
 }
+
+export interface ExecuterStatus {
+  liveEnabled: boolean;
+  autoTradeEnabled: boolean;
+  killSwitch: boolean;
+  exchange: string;
+  binance: { testnet: boolean; base: string; configured: boolean };
+  limits: {
+    maxOrderNotional: number;
+    maxOpenPositions: number;
+    maxTotalExposure: number;
+    maxDailyLoss: number;
+  };
+  openPositions: number;
+  openExposure: number;
+  dailyPnl: number;
+}
+
+export interface ExecuterOrder {
+  id: string;
+  createdAt: number;
+  mode: string;
+  exchange: string;
+  symbol: string;
+  side: string;
+  type: string;
+  quantity: number | null;
+  price: number | null;
+  notional: number | null;
+  stop: number | null;
+  takeProfit: number | null;
+  status: string;
+  source: string;
+  filledPrice: number | null;
+  filledAt: number | null;
+  error: string | null;
+}
+
+export interface ExecuterPosition {
+  id: string;
+  orderId: string | null;
+  symbol: string;
+  side: string;
+  quantity: number;
+  entry: number;
+  stop: number | null;
+  takeProfit: number | null;
+  status: string;
+  mode: string;
+  openedAt: number;
+  closedAt: number | null;
+  exitPrice: number | null;
+  pnl: number | null;
+}
+
+export interface ExecuterPlaceResult {
+  order: ExecuterOrder;
+  position: ExecuterPosition;
+}
+
+export interface AutoTradeResult {
+  scanned: number;
+  candidates: number;
+  placed: number;
+  outcomes: { symbol: string; status: string; error?: string; quantity?: number }[];
+}
