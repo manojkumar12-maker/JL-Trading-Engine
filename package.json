@@ -1,0 +1,24 @@
+{
+  "name": "joys-income",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Crypto signal data engine: multi-provider klines, SQLite storage, live WebSocket feed, React dashboard",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "dev": "node --watch --disable-warning=ExperimentalWarning server.js",
+    "build": "npm --prefix client run build",
+    "client": "npm --prefix client run dev",
+    "dev:all": "concurrently -k -n api,web -c blue,green \"npm:dev\" \"npm:client\"",
+    "setup": "npm install && npm --prefix client install"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.4.1",
+    "@fastify/static": "^10.1.10",
+    "fastify": "^5.12.8",
+    "ws": "^8.22.1"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7"
+  }
+}
