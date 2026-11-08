@@ -1,0 +1,39 @@
+# Fly.io configuration for JL-Trading Engine.
+# App name must be globally unique — change it if `jl-trading-engine` is taken.
+app = "jl-trading-engine"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3001"
+  NODE_ENV = "production"
+  ENABLE_LIVE_TRADING = "false"
+  ENABLE_AUTO_TRADE = "false"
+  BINANCE_TESTNET = "true"
+  ACCOUNT_BALANCE_USD = "50"
+  MAX_LEVERAGE = "10"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "15s"
+    interval = "20s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "3s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"
+
+[[mounts]]
+  source = "jl_data"
+  destination = "/app/data"
