@@ -9,6 +9,7 @@ import type {
   ExecuterPlaceResult,
   ExecuterPosition,
   ExecuterStatus,
+  EquityState,
   KlineResponse,
   LogEntry,
   MarketsResponse,
@@ -249,5 +250,21 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+    }),
+
+  equity: () => request<EquityState>("/api/equity"),
+
+  setEquityBalance: (balance: number) =>
+    request<EquityState>("/api/equity/balance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ balance }),
+    }),
+
+  resetEquity: (balance: number) =>
+    request<EquityState>("/api/equity/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ balance }),
     }),
 };

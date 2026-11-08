@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { KlineResponse } from "./types";
 import Providers from "./components/Providers";
+import Equity from "./components/Equity";
 import MarketExplorer from "./components/MarketExplorer";
 import CandleChart from "./components/CandleChart";
 import CandleTable from "./components/CandleTable";
@@ -29,6 +30,8 @@ export default function App() {
 
       <main className="mx-auto grid max-w-6xl gap-5 px-4 pb-16">
         <Providers />
+
+        <Equity />
 
         <RugCheck />
 

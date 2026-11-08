@@ -33,6 +33,7 @@ import { CANONICAL_INTERVALS } from "./lib/crypto/interval.js";
 import { getTickerPrice } from "./lib/crypto/price.js";
 import { getNews, newsProviderStatus, refreshNews } from "./lib/news/index.js";
 import { runBacktest } from "./lib/backtest/index.js";
+import { getEquityState, setBalance } from "./lib/equity/index.js";
 import {
   autoTrade,
   closePosition,
@@ -399,6 +400,29 @@ app.post("/api/size/portfolio", async (req, reply) => {
     reply.code(400);
     return { error: err.message };
   }
+});
+
+/* ---------------- equity ---------------- */
+
+app.get("/api/equity", async () => getEquityState());
+
+app.post("/api/equity/balance", async (req, reply) => {
+  try {
+    return setBalance(req.body?.balance);
+  } catch (err) {
+    reply.code(400);
+    return { error: err.message };
+  }
+});
+
+app.post("/api/equity/reset", async (req, reply) => {
+  const balance = Number(req.body?.balance);
+  if (!(balance > 0)) {
+    reply.code(400);
+    return { error: "balance must be greater than 0" };
+  }
+  resetPaperTrading();
+  return setBalance(balance);
 });
 
 /* ---------------- executer ---------------- */

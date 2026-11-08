@@ -448,3 +448,23 @@ export interface AutoTradeResult {
   placed: number;
   outcomes: { symbol: string; status: string; error?: string; quantity?: number }[];
 }
+
+export interface EquityState {
+  balance: number;
+  equity: number;
+  realized: number;
+  openNotional: number;
+  marginUsed: number;
+  deployFraction: number;
+  deployable: number;
+  reserve: number;
+  maxConcurrent: number;
+  perTradeMargin: number;
+  perTradeNotionalCap: number;
+  availableMargin: number;
+  drawdownPct: number;
+  throttled: boolean;
+  paused: boolean;
+  maxLeverage: number;
+  policy: Record<string, string>;
+}
