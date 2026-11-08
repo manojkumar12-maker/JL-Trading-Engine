@@ -8,6 +8,7 @@ import Agents from "./components/Agents";
 import Datasets from "./components/Datasets";
 import Logs from "./components/Logs";
 import News from "./components/News";
+import Opportunities from "./components/Opportunities";
 import { cardCls } from "./ui";
 
 export default function App() {
@@ -34,6 +35,8 @@ export default function App() {
             <CandleTable candles={data?.candles ?? []} />
           </div>
         </section>
+
+        <Opportunities />
 
         <News />
 

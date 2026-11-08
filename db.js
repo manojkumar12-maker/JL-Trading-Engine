@@ -77,6 +77,27 @@ db.exec(`
     fetched_at INTEGER
   );
   CREATE INDEX IF NOT EXISTS idx_news_published ON news (published_at DESC);
+
+  CREATE TABLE IF NOT EXISTS signals (
+    symbol TEXT NOT NULL,
+    tf TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    price REAL,
+    score REAL,
+    direction TEXT,
+    confidence INTEGER,
+    entry REAL,
+    stop REAL,
+    targets TEXT,
+    reasons TEXT,
+    indicators TEXT,
+    source TEXT,
+    change_pct REAL,
+    quote_volume REAL,
+    oi_change_pct REAL,
+    heat REAL,
+    PRIMARY KEY (symbol, tf)
+  );
 `);
 
 const s = {
@@ -150,6 +171,20 @@ const s = {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `),
   countNews: db.prepare(`SELECT COUNT(*) AS c FROM news`),
+
+  upsertSignal: db.prepare(`
+    INSERT INTO signals
+      (symbol, tf, created_at, price, score, direction, confidence, entry, stop,
+       targets, reasons, indicators, source, change_pct, quote_volume, oi_change_pct, heat)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(symbol, tf) DO UPDATE SET
+      created_at = excluded.created_at, price = excluded.price, score = excluded.score,
+      direction = excluded.direction, confidence = excluded.confidence,
+      entry = excluded.entry, stop = excluded.stop, targets = excluded.targets,
+      reasons = excluded.reasons, indicators = excluded.indicators, source = excluded.source,
+      change_pct = excluded.change_pct, quote_volume = excluded.quote_volume,
+      oi_change_pct = excluded.oi_change_pct, heat = excluded.heat
+  `),
 };
 
 function toCandle(r) {
@@ -346,4 +381,82 @@ export function listNews({ limit = 50, source = "", q = "" } = {}) {
     .all(...params, capped);
 
   return rows;
+}
+
+export function saveSignals(list) {
+  if (!list?.length) return 0;
+  db.exec("BEGIN");
+  try {
+    for (const sig of list) {
+      s.upsertSignal.run(
+        sig.symbol,
+        sig.interval || "1h",
+        sig.updatedAt || Date.now(),
+        sig.price ?? null,
+        sig.score ?? null,
+        sig.direction ?? null,
+        sig.confidence ?? null,
+        sig.plan?.entry ?? null,
+        sig.plan?.stop ?? null,
+        JSON.stringify(sig.plan?.targets || []),
+        JSON.stringify(sig.reasons || []),
+        JSON.stringify(sig.indicators || {}),
+        sig.source ?? null,
+        sig.changePct ?? null,
+        sig.quoteVolume ?? null,
+        sig.oiChangePct ?? null,
+        sig.heat ?? null
+      );
+    }
+    db.exec("COMMIT");
+    return list.length;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
+export function listSignals({ limit = 50, direction = "", minScore = 0 } = {}) {
+  const clauses = [];
+  const params = [];
+
+  if (direction) {
+    clauses.push("direction = ?");
+    params.push(direction);
+  }
+
+  const threshold = Number(minScore) || 0;
+  if (threshold > 0) {
+    clauses.push("(score >= ? OR score <= ?)");
+    params.push(threshold, -threshold);
+  }
+
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const capped = Math.max(1, Math.min(Number(limit) || 50, 500));
+
+  const rows = db
+    .prepare(
+      `SELECT symbol, tf AS interval, created_at AS updatedAt, price, score, direction,
+              confidence, entry, stop, targets, reasons, indicators, source,
+              change_pct AS changePct, quote_volume AS quoteVolume,
+              oi_change_pct AS oiChangePct, heat
+       FROM signals ${where}
+       ORDER BY ABS(score) * confidence DESC LIMIT ?`
+    )
+    .all(...params, capped);
+
+  return rows.map((row) => ({
+    ...row,
+    targets: safeParse(row.targets),
+    reasons: safeParse(row.reasons),
+    indicators: safeParse(row.indicators),
+    plan:
+      row.entry == null
+        ? null
+        : {
+            entry: row.entry,
+            stop: row.stop,
+            targets: safeParse(row.targets),
+          },
+  }));
 }

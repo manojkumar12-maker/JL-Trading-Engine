@@ -13,6 +13,8 @@ import {
   listAgents,
   listDatasets,
   listLogs,
+  listSignals,
+  saveSignals,
 } from "./db.js";
 import {
   getHistory,
@@ -24,6 +26,9 @@ import {
 } from "./lib/crypto/index.js";
 import { CANONICAL_INTERVALS } from "./lib/crypto/interval.js";
 import { getNews, newsProviderStatus, refreshNews } from "./lib/news/index.js";
+import { analyzeSymbol } from "./lib/signals/engine.js";
+import { scan } from "./lib/signals/screener.js";
+import { getMovers } from "./lib/signals/universe.js";
 import { ACTIONS, runAgent } from "./lib/agents.js";
 import { startScheduler } from "./lib/scheduler.js";
 import { attachWebSocket } from "./ws.js";
@@ -215,6 +220,60 @@ app.post("/api/news/refresh", async (req, reply) => {
   const source = String(req.body?.source || "");
   try {
     return await refreshNews({ source });
+  } catch (err) {
+    reply.code(502);
+    return { error: err.message };
+  }
+});
+
+/* ---------------- signals ---------------- */
+
+app.get("/api/signals", async (req) => {
+  const { limit = "50", direction = "", minScore = "0" } = req.query || {};
+  const signals = listSignals({ limit, direction, minScore });
+  return { generatedAt: Date.now(), count: signals.length, signals };
+});
+
+app.get("/api/signal", async (req, reply) => {
+  const { symbol, interval = "1h" } = req.query || {};
+  if (!symbol) {
+    reply.code(400);
+    return { error: "symbol is required" };
+  }
+  try {
+    const signal = await analyzeSymbol(symbol, interval);
+    if (!signal) {
+      reply.code(422);
+      return { error: "not enough candle data to analyze this symbol" };
+    }
+    if (signal.direction !== "neutral") saveSignals([signal]);
+    return signal;
+  } catch (err) {
+    reply.code(502);
+    return { error: err.message };
+  }
+});
+
+app.get("/api/movers", async (req, reply) => {
+  const { limit = "15", minVolumeQuote = "1000000" } = req.query || {};
+  try {
+    return { movers: await getMovers({ limit, minVolumeQuote }) };
+  } catch (err) {
+    reply.code(502);
+    return { error: err.message };
+  }
+});
+
+app.post("/api/scan", async (req, reply) => {
+  const body = req.body || {};
+  try {
+    return await scan({
+      interval: body.interval || "1h",
+      limit: body.limit,
+      minScore: body.minScore,
+      minVolumeQuote: body.minVolumeQuote,
+      oi: body.oi !== false,
+    });
   } catch (err) {
     reply.code(502);
     return { error: err.message };

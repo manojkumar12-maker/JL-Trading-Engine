@@ -127,3 +127,67 @@ export interface NewsRefreshResult {
   total: number;
   errors: { source: string; error: string }[];
 }
+
+export interface SignalPlan {
+  entry: number;
+  stop: number;
+  targets: number[];
+  riskReward?: number[];
+  atr?: number;
+}
+
+export interface SignalIndicators {
+  rsi: number | null;
+  macdHist: number;
+  ema20: number;
+  ema50: number;
+  ema200: number | null;
+  bollingerPctB: number | null;
+  volumeRatio: number;
+  atr: number;
+  atrPct: number;
+  momentum20Pct: number;
+}
+
+export interface Signal {
+  symbol: string;
+  interval: string;
+  updatedAt: number;
+  price: number;
+  score: number;
+  direction: "long" | "short" | "neutral";
+  confidence: number;
+  higherTrend?: string | null;
+  reasons: string[];
+  indicators: SignalIndicators;
+  plan: SignalPlan | null;
+  source?: string;
+  changePct?: number | null;
+  quoteVolume?: number | null;
+  oiChangePct?: number | null;
+  heat?: number;
+}
+
+export interface SignalsResponse {
+  generatedAt: number;
+  count: number;
+  signals: Signal[];
+}
+
+export interface Mover {
+  symbol: string;
+  price: number;
+  changePct: number;
+  quoteVolume: number;
+  oiChangePct: number | null;
+  heat: number;
+  source: string;
+}
+
+export interface ScanResult {
+  interval: string;
+  scanned: number;
+  generatedAt: number;
+  movers: Mover[];
+  opportunities: Signal[];
+}

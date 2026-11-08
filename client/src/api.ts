@@ -5,9 +5,13 @@ import type {
   KlineResponse,
   LogEntry,
   MarketsResponse,
+  Mover,
   NewsRefreshResult,
   NewsResponse,
   ProviderStatus,
+  ScanResult,
+  Signal,
+  SignalsResponse,
 } from "./types";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -70,4 +74,22 @@ export const api = {
 
   refreshNews: () =>
     request<NewsRefreshResult>("/api/news/refresh", { method: "POST" }),
+
+  signals: (limit = 100) =>
+    request<SignalsResponse>(`/api/signals?limit=${limit}`),
+
+  signal: (symbol: string, interval: string) =>
+    request<Signal>(
+      `/api/signal?symbol=${enc(symbol)}&interval=${enc(interval)}`
+    ),
+
+  movers: (limit = 15) =>
+    request<{ movers: Mover[] }>(`/api/movers?limit=${limit}`),
+
+  scan: (body: { interval?: string; limit?: number; minScore?: number; oi?: boolean } = {}) =>
+    request<ScanResult>("/api/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
 };

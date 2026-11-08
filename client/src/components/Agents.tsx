@@ -17,6 +17,7 @@ const ACTIONS = [
   { value: "fetch-history", label: "Sync history" },
   { value: "refresh-markets", label: "Refresh markets" },
   { value: "fetch-news", label: "Fetch crypto news" },
+  { value: "scan-signals", label: "Scan for signals" },
 ];
 
 const AGENT_INTERVALS = ["1m", "5m", "15m", "1h", "4h", "1d"];
