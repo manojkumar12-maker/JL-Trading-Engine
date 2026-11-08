@@ -179,6 +179,17 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    time INTEGER NOT NULL,
+    level TEXT,
+    category TEXT,
+    event TEXT,
+    message TEXT,
+    data TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_events_time ON events (time DESC);
 `);
 
 const s = {
@@ -349,6 +360,15 @@ const s = {
   dailyPnl: db.prepare(`
     SELECT COALESCE(SUM(pnl), 0) AS p FROM positions WHERE status = 'closed' AND closed_at >= ?
   `),
+
+  insertEvent: db.prepare(`
+    INSERT INTO events (time, level, category, event, message, data)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `),
+  pruneEvents: db.prepare(`
+    DELETE FROM events WHERE id NOT IN (SELECT id FROM events ORDER BY id DESC LIMIT 5000)
+  `),
+  clearEvents: db.prepare(`DELETE FROM events`),
 };
 
 function toCandle(r) {
@@ -822,4 +842,70 @@ export function dailyRealizedPnl() {
 export function resetPaperTrading() {
   db.exec("DELETE FROM positions WHERE mode = 'paper'");
   db.exec("DELETE FROM orders WHERE mode = 'paper'");
+}
+
+export function addEvent(entry) {
+  s.insertEvent.run(
+    entry.time || Date.now(),
+    entry.level || "info",
+    entry.category || "system",
+    entry.event || "event",
+    String(entry.message || "").slice(0, 800),
+    entry.data ?? null
+  );
+  s.pruneEvents.run();
+}
+
+export function listEvents({
+  limit = 200,
+  level = "",
+  category = "",
+  q = "",
+  since = 0,
+} = {}) {
+  const clauses = [];
+  const params = [];
+
+  if (level) {
+    clauses.push("level = ?");
+    params.push(level);
+  }
+  if (category) {
+    clauses.push("category = ?");
+    params.push(category);
+  }
+  if (Number(since) > 0) {
+    clauses.push("time >= ?");
+    params.push(Number(since));
+  }
+  if (q) {
+    clauses.push("(message LIKE ? OR event LIKE ? OR data LIKE ?)");
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+  }
+
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const capped = Math.max(1, Math.min(Number(limit) || 200, 1000));
+
+  return db
+    .prepare(
+      `SELECT id, time, level, category, event, message, data
+       FROM events ${where} ORDER BY id DESC LIMIT ?`
+    )
+    .all(...params, capped);
+}
+
+export function clearEvents() {
+  s.clearEvents.run();
+}
+
+export function eventSummary() {
+  const since = Date.now() - 86_400_000;
+  const total = db.prepare("SELECT COUNT(*) AS c FROM events").get().c;
+  const byCategory = db
+    .prepare("SELECT category, COUNT(*) AS c FROM events WHERE time >= ? GROUP BY category")
+    .all(since);
+  const byLevel = db
+    .prepare("SELECT level, COUNT(*) AS c FROM events WHERE time >= ? GROUP BY level")
+    .all(since);
+  return { total, since, byCategory, byLevel };
 }

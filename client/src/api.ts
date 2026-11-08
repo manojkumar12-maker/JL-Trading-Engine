@@ -10,7 +10,9 @@ import type {
   ExecuterPosition,
   ExecuterStatus,
   EquityState,
+  EventSummary,
   KlineResponse,
+  LogEventRow,
   LogEntry,
   MarketsResponse,
   Mover,
@@ -267,4 +269,25 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ balance }),
     }),
+
+  events: (params: {
+    limit?: number;
+    level?: string;
+    category?: string;
+    q?: string;
+    since?: number;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.limit) qs.set("limit", String(params.limit));
+    if (params.level) qs.set("level", params.level);
+    if (params.category) qs.set("category", params.category);
+    if (params.q) qs.set("q", params.q);
+    if (params.since) qs.set("since", String(params.since));
+    return request<LogEventRow[]>(`/api/events?${qs.toString()}`);
+  },
+
+  eventSummary: () => request<EventSummary>("/api/events/summary"),
+
+  clearEvents: () =>
+    request<{ ok: boolean }>("/api/events/clear", { method: "POST" }),
 };

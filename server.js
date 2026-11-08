@@ -5,8 +5,10 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { loadEnv, paths } from "./lib/env.js";
 import {
+  clearEvents,
   countNews,
   deleteAgent,
+  eventSummary,
   getAgent,
   getBacktest,
   getDataset,
@@ -14,6 +16,7 @@ import {
   listAgents,
   listBacktests,
   listDatasets,
+  listEvents,
   listLogs,
   listRugChecks,
   listSignals,
@@ -34,6 +37,7 @@ import { getTickerPrice } from "./lib/crypto/price.js";
 import { getNews, newsProviderStatus, refreshNews } from "./lib/news/index.js";
 import { runBacktest } from "./lib/backtest/index.js";
 import { getEquityState, setBalance } from "./lib/equity/index.js";
+import { logger } from "./lib/logger.js";
 import {
   autoTrade,
   closePosition,
@@ -334,6 +338,17 @@ app.post("/api/backtest", async (req, reply) => {
       tpAtr: body.tpAtr,
     });
     const saved = saveBacktest(result);
+    logger.info(
+      "backtest",
+      "run",
+      `Backtest ${result.symbol} ${result.interval}: ${result.summary.trades} trades, win ${(result.summary.winRate * 100).toFixed(1)}%`,
+      {
+        symbol: result.symbol,
+        interval: result.interval,
+        days: result.days,
+        summary: result.summary,
+      }
+    );
     return { ...result, id: saved.id, createdAt: saved.createdAt };
   } catch (err) {
     reply.code(502);
@@ -402,13 +417,35 @@ app.post("/api/size/portfolio", async (req, reply) => {
   }
 });
 
+/* ---------------- events / system log ---------------- */
+
+app.get("/api/events", async (req) => {
+  const { limit = "200", level = "", category = "", q = "", since = "0" } = req.query || {};
+  return listEvents({ limit, level, category, q, since });
+});
+
+app.get("/api/events/summary", async () => eventSummary());
+
+app.post("/api/events/clear", async () => {
+  clearEvents();
+  logger.info("system", "events_cleared", "System event log cleared");
+  return { ok: true };
+});
+
 /* ---------------- equity ---------------- */
 
 app.get("/api/equity", async () => getEquityState());
 
 app.post("/api/equity/balance", async (req, reply) => {
   try {
-    return setBalance(req.body?.balance);
+    const state = setBalance(req.body?.balance);
+    logger.info("equity", "balance_set", `Balance set to $${state.balance}`, {
+      balance: state.balance,
+      equity: state.equity,
+      deployable: state.deployable,
+      reserve: state.reserve,
+    });
+    return state;
   } catch (err) {
     reply.code(400);
     return { error: err.message };
@@ -422,7 +459,13 @@ app.post("/api/equity/reset", async (req, reply) => {
     return { error: "balance must be greater than 0" };
   }
   resetPaperTrading();
-  return setBalance(balance);
+  const state = setBalance(balance);
+  logger.info("equity", "reset", `Equity reset with balance $${balance}`, {
+    balance,
+    deployable: state.deployable,
+    reserve: state.reserve,
+  });
+  return state;
 });
 
 /* ---------------- executer ---------------- */
@@ -556,6 +599,11 @@ if (hasBuild) {
 await app.listen({ port: PORT, host: "0.0.0.0" });
 attachWebSocket(app.server);
 startScheduler();
+
+logger.info("system", "server_start", `JL-Trading Engine started on port ${PORT}`, {
+  port: PORT,
+  market: "futures",
+});
 
 setInterval(() => {
   refreshPaperPositions().catch(() => {});

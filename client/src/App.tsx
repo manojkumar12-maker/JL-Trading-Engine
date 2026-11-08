@@ -14,6 +14,7 @@ import Backtest from "./components/Backtest";
 import RugCheck from "./components/RugCheck";
 import Sizer from "./components/Sizer";
 import Executer from "./components/Executer";
+import SystemLog from "./components/SystemLog";
 import { cardCls } from "./ui";
 
 export default function App() {
@@ -61,6 +62,8 @@ export default function App() {
         </div>
 
         <Logs />
+
+        <SystemLog />
       </main>
     </div>
   );

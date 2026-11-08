@@ -468,3 +468,20 @@ export interface EquityState {
   maxLeverage: number;
   policy: Record<string, string>;
 }
+
+export interface LogEventRow {
+  id: number;
+  time: number;
+  level: string;
+  category: string;
+  event: string;
+  message: string;
+  data: string | null;
+}
+
+export interface EventSummary {
+  total: number;
+  since: number;
+  byCategory: { category: string; c: number }[];
+  byLevel: { level: string; c: number }[];
+}
