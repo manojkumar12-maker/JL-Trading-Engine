@@ -16,6 +16,7 @@ const ACTIONS = [
   { value: "fetch-klines", label: "Fetch latest klines" },
   { value: "fetch-history", label: "Sync history" },
   { value: "refresh-markets", label: "Refresh markets" },
+  { value: "fetch-news", label: "Fetch crypto news" },
 ];
 
 const AGENT_INTERVALS = ["1m", "5m", "15m", "1h", "4h", "1d"];
@@ -49,7 +50,7 @@ export default function Agents() {
     },
   });
 
-  const showSymbol = action !== "refresh-markets";
+  const showSymbol = action === "fetch-klines" || action === "fetch-history";
   const showLimit = action === "fetch-klines";
   const showDays = action === "fetch-history";
 

@@ -5,6 +5,8 @@ import type {
   KlineResponse,
   LogEntry,
   MarketsResponse,
+  NewsRefreshResult,
+  NewsResponse,
   ProviderStatus,
 } from "./types";
 
@@ -63,4 +65,9 @@ export const api = {
     }),
 
   logs: () => request<LogEntry[]>("/api/logs"),
+
+  news: (limit = 120) => request<NewsResponse>(`/api/news?limit=${limit}`),
+
+  refreshNews: () =>
+    request<NewsRefreshResult>("/api/news/refresh", { method: "POST" }),
 };

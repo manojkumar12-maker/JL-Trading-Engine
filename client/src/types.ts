@@ -90,3 +90,40 @@ export interface LogEntry {
   output: string;
   ms: number;
 }
+
+export interface NewsArticle {
+  id: string;
+  sourceId: string;
+  sourceName: string;
+  title: string;
+  link: string;
+  summary: string;
+  publishedAt: number;
+  fetchedAt: number;
+}
+
+export interface NewsSourceStatus {
+  id: string;
+  name: string;
+  available: boolean;
+  cooldownUntil: number | null;
+  usedInWindow: number;
+  limitPerWindow: number;
+  successCount: number;
+  errorCount: number;
+  lastError: string | null;
+}
+
+export interface NewsResponse {
+  total: number;
+  count: number;
+  articles: NewsArticle[];
+  sources: NewsSourceStatus[];
+}
+
+export interface NewsRefreshResult {
+  fetched: number;
+  inserted: number;
+  total: number;
+  errors: { source: string; error: string }[];
+}

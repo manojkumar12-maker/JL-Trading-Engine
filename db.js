@@ -65,6 +65,18 @@ db.exec(`
     output TEXT,
     ms INTEGER
   );
+
+  CREATE TABLE IF NOT EXISTS news (
+    id TEXT PRIMARY KEY,
+    source_id TEXT,
+    source_name TEXT,
+    title TEXT NOT NULL,
+    link TEXT,
+    summary TEXT,
+    published_at INTEGER,
+    fetched_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_news_published ON news (published_at DESC);
 `);
 
 const s = {
@@ -131,6 +143,13 @@ const s = {
            run_trigger AS trigger, status, output, ms
     FROM logs ORDER BY id DESC LIMIT 200
   `),
+
+  insertNews: db.prepare(`
+    INSERT OR IGNORE INTO news
+      (id, source_id, source_name, title, link, summary, published_at, fetched_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `),
+  countNews: db.prepare(`SELECT COUNT(*) AS c FROM news`),
 };
 
 function toCandle(r) {
@@ -269,4 +288,62 @@ export function addLog(entry) {
 
 export function listLogs() {
   return s.listLogs.all();
+}
+
+export function upsertNews(articles) {
+  if (!articles?.length) return 0;
+  db.exec("BEGIN");
+  try {
+    let inserted = 0;
+    for (const a of articles) {
+      const result = s.insertNews.run(
+        a.id,
+        a.sourceId,
+        a.sourceName,
+        a.title,
+        a.link || "",
+        a.summary || "",
+        a.publishedAt || Date.now(),
+        a.fetchedAt || Date.now()
+      );
+      inserted += result.changes;
+    }
+    db.exec("COMMIT");
+    return inserted;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
+export function countNews() {
+  return s.countNews.get().c;
+}
+
+export function listNews({ limit = 50, source = "", q = "" } = {}) {
+  const clauses = [];
+  const params = [];
+
+  if (source) {
+    clauses.push("source_id = ?");
+    params.push(source);
+  }
+  if (q) {
+    clauses.push("(title LIKE ? OR summary LIKE ?)");
+    params.push(`%${q}%`, `%${q}%`);
+  }
+
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const capped = Math.max(1, Math.min(Number(limit) || 50, 500));
+
+  const rows = db
+    .prepare(
+      `SELECT id, source_id AS sourceId, source_name AS sourceName, title, link,
+              summary, published_at AS publishedAt, fetched_at AS fetchedAt
+       FROM news ${where}
+       ORDER BY published_at DESC LIMIT ?`
+    )
+    .all(...params, capped);
+
+  return rows;
 }

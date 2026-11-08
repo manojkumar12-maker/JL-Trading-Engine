@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { loadEnv, paths } from "./lib/env.js";
 import {
+  countNews,
   deleteAgent,
   getAgent,
   getDataset,
@@ -22,6 +23,7 @@ import {
   searchMarkets,
 } from "./lib/crypto/index.js";
 import { CANONICAL_INTERVALS } from "./lib/crypto/interval.js";
+import { getNews, newsProviderStatus, refreshNews } from "./lib/news/index.js";
 import { ACTIONS, runAgent } from "./lib/agents.js";
 import { startScheduler } from "./lib/scheduler.js";
 import { attachWebSocket } from "./ws.js";
@@ -145,7 +147,10 @@ app.post("/api/agents", async (req, reply) => {
     reply.code(400);
     return { error: `action must be one of: ${ACTIONS.join(", ")}` };
   }
-  if (action !== "refresh-markets" && !String(body.symbol || "").trim()) {
+  if (
+    (action === "fetch-klines" || action === "fetch-history") &&
+    !String(body.symbol || "").trim()
+  ) {
     reply.code(400);
     return { error: "symbol is required for this action" };
   }
@@ -188,6 +193,31 @@ app.post("/api/agents/:id/run", async (req, reply) => {
   } catch (err) {
     reply.code(502);
     return { ok: false, error: err.message };
+  }
+});
+
+/* ---------------- news ---------------- */
+
+app.get("/api/news", async (req) => {
+  const { limit = "50", source = "", q = "" } = req.query || {};
+  const articles = getNews({ limit, source, q });
+  return {
+    total: countNews(),
+    count: articles.length,
+    articles,
+    sources: newsProviderStatus(),
+  };
+});
+
+app.get("/api/news/sources", async () => newsProviderStatus());
+
+app.post("/api/news/refresh", async (req, reply) => {
+  const source = String(req.body?.source || "");
+  try {
+    return await refreshNews({ source });
+  } catch (err) {
+    reply.code(502);
+    return { error: err.message };
   }
 });
 

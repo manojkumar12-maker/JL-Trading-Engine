@@ -7,6 +7,7 @@ import CandleTable from "./components/CandleTable";
 import Agents from "./components/Agents";
 import Datasets from "./components/Datasets";
 import Logs from "./components/Logs";
+import News from "./components/News";
 import { cardCls } from "./ui";
 
 export default function App() {
@@ -33,6 +34,8 @@ export default function App() {
             <CandleTable candles={data?.candles ?? []} />
           </div>
         </section>
+
+        <News />
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Agents />
