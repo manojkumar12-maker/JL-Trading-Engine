@@ -316,6 +316,7 @@ app.post("/api/scan", async (req, reply) => {
       interval: body.interval || "5m",
       limit: body.limit,
       minScore: body.minScore,
+      minConfidence: body.minConfidence,
       minVolumeQuote: body.minVolumeQuote,
       oi: body.oi !== false,
     });
@@ -337,6 +338,7 @@ app.post("/api/backtest", async (req, reply) => {
       minScore: body.minScore,
       stopAtr: body.stopAtr,
       tpAtr: body.tpAtr,
+      minConfidence: body.minConfidence,
     });
     const saved = saveBacktest(result);
     logger.info(

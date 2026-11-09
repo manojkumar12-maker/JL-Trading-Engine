@@ -85,7 +85,7 @@ export default function Opportunities() {
   });
 
   const scanMut = useMutation({
-    mutationFn: () => api.scan({ interval, limit: 8, minScore: 25 }),
+    mutationFn: () => api.scan({ interval, limit: 8, minScore: 35, minConfidence: 70 }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["signals"] }),
   });
 

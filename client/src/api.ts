@@ -102,7 +102,7 @@ export const api = {
   movers: (limit = 15) =>
     request<{ movers: Mover[] }>(`/api/movers?limit=${limit}`),
 
-  scan: (body: { interval?: string; limit?: number; minScore?: number; oi?: boolean } = {}) =>
+  scan: (body: { interval?: string; limit?: number; minScore?: number; minConfidence?: number; oi?: boolean } = {}) =>
     request<ScanResult>("/api/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -116,6 +116,7 @@ export const api = {
     minScore?: number;
     stopAtr?: number;
     tpAtr?: number;
+    minConfidence?: number;
   }) =>
     request<BacktestResult>("/api/backtest", {
       method: "POST",

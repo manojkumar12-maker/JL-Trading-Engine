@@ -257,7 +257,7 @@ export interface BacktestResult {
   interval: string;
   days: number;
   candles: number;
-  params: { minScore: number; stopAtr: number; tpAtr: number };
+  params: { mode?: string; minScore: number; minConfidence?: number; stopAtr: number; tpAtr: number };
   summary: BacktestSummary;
   byDirection: { direction: string; trades: number; wins: number; winRate: number }[];
   equity: { time: number; r: number }[];
@@ -270,7 +270,7 @@ export interface BacktestRunSummary {
   symbol: string;
   interval: string;
   days: number;
-  params: { minScore?: number; stopAtr?: number; tpAtr?: number };
+  params: { mode?: string; minScore?: number; minConfidence?: number; stopAtr?: number; tpAtr?: number };
   summary: BacktestSummary;
 }
 

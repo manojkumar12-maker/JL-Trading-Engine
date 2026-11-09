@@ -48,13 +48,14 @@ export default function Backtest() {
   const [symbol, setSymbol] = useState("BTC/USD");
   const [interval, setInterval] = useState("5m");
   const [days, setDays] = useState(7);
-  const [minScore, setMinScore] = useState(25);
-  const [stopAtr, setStopAtr] = useState(1.5);
-  const [tpAtr, setTpAtr] = useState(1.5);
+  const [minScore, setMinScore] = useState(35);
+  const [minConfidence, setMinConfidence] = useState(70);
+  const [stopAtr, setStopAtr] = useState(2.2);
+  const [tpAtr, setTpAtr] = useState(0.8);
 
   const run = useMutation({
     mutationFn: () =>
-      api.runBacktest({ symbol, interval, days, minScore, stopAtr, tpAtr }),
+      api.runBacktest({ symbol, interval, days, minScore, minConfidence, stopAtr, tpAtr }),
   });
 
   const result: BacktestResult | undefined = run.data;
@@ -106,6 +107,15 @@ export default function Backtest() {
           value={minScore}
           onChange={(e) => setMinScore(Number(e.target.value))}
           title="Minimum score"
+        />
+        <input
+          type="number"
+          min={0}
+          max={95}
+          className={`${inputCls} w-24`}
+          value={minConfidence}
+          onChange={(e) => setMinConfidence(Number(e.target.value))}
+          title="Minimum confidence"
         />
         <input
           type="number"
@@ -168,8 +178,9 @@ export default function Backtest() {
 
           <p className="mt-2 text-xs text-slate-500">
             {result.symbol} · {result.interval} · {result.days}d · {result.candles} candles ·
-            minScore {result.params.minScore} · stop {result.params.stopAtr}×ATR · TP{" "}
-            {result.params.tpAtr}×ATR
+            minScore {result.params.minScore} · minConf {result.params.minConfidence ?? "—"} ·
+            stop {result.params.stopAtr}×ATR · TP {result.params.tpAtr}×ATR
+            {result.params.mode ? ` · ${result.params.mode}` : ""}
           </p>
 
           <Sparkline points={result.equity} />
