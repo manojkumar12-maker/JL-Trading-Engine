@@ -63,6 +63,7 @@ import { scan } from "./lib/signals/screener.js";
 import { getMovers } from "./lib/signals/universe.js";
 import { ACTIONS, runAgent } from "./lib/agents.js";
 import { startScheduler } from "./lib/scheduler.js";
+import { autopilotStatus, startAutopilot, stopAutopilot } from "./lib/autopilot.js";
 import { attachWebSocket } from "./ws.js";
 
 loadEnv();
@@ -339,6 +340,8 @@ app.post("/api/backtest", async (req, reply) => {
       stopAtr: body.stopAtr,
       tpAtr: body.tpAtr,
       minConfidence: body.minConfidence,
+      feePct: body.feePct,
+      slippageBps: body.slippageBps,
     });
     const saved = saveBacktest(result);
     logger.info(
@@ -372,6 +375,8 @@ app.post("/api/calibrate", async (req, reply) => {
       tpAtr: body.tpAtr,
       minScore: body.minScore,
       minConfidence: body.minConfidence,
+      feePct: body.feePct,
+      slippageBps: body.slippageBps,
       targetWinRate: body.targetWinRate,
       targetProfitFactor: body.targetProfitFactor,
       minTrades: body.minTrades,
@@ -496,6 +501,8 @@ app.post("/api/equity/reset", async (req, reply) => {
 /* ---------------- executer ---------------- */
 
 app.get("/api/executer/status", async () => executerStatus());
+
+app.get("/api/autopilot/status", async () => autopilotStatus());
 
 app.get("/api/executer/orders", async (req) => {
   const { limit = "50" } = req.query || {};
@@ -624,6 +631,7 @@ if (hasBuild) {
 await app.listen({ port: PORT, host: "0.0.0.0" });
 attachWebSocket(app.server);
 startScheduler();
+startAutopilot();
 
 logger.info("system", "server_start", `JL-Trading Engine started on port ${PORT}`, {
   port: PORT,
@@ -635,6 +643,7 @@ setInterval(() => {
 }, 10_000);
 
 const stop = async () => {
+  stopAutopilot();
   await app.close();
   process.exit(0);
 };

@@ -40,19 +40,21 @@ npm run build
 npm start        # serves API + built client static files
 ```
 
-## High win-rate mode (≈70–80% historical target)
+## Default trading profile
 
-Signals were tightened for **selectivity over frequency**. The calibrated
-defaults live in `lib/signals/defaults.js` (`HIGH_WR`) and are shared by the
-signal engine, backtester, screener, calibrator, agents, and executer:
+Signals are selective (confluence + quality filters). The defaults live in
+`lib/signals/defaults.js` (`HIGH_WR`) and are shared by the signal engine,
+backtester, screener, calibrator, agents, and executer:
 
 | Setting | Default |
 |---------|---------|
-| Stop loss | **2.2 × ATR** (wider) |
-| First take profit | **0.8 × ATR** (closer, higher hit rate) |
-| Additional targets | 1.5 × ATR, 2.2 × ATR |
+| Stop loss | **1.5 × ATR** |
+| First take profit | **1.5 × ATR** (~1:1 R:R) |
+| Additional targets | 2.5 × ATR, 3.5 × ATR |
 | Actionable score | **≥ 35** |
 | Confidence floor | **≥ 70** |
+| Backtest fee | **0.05% per side** |
+| Backtest slippage | **2 bps per side** |
 
 Quality filters:
 
@@ -66,27 +68,42 @@ Quality filters:
 
 Plans are tagged `mode: "high_wr"` and include the `params` used.
 
-**Important:** 70–80% win rate is a **historical calibration target**, not a guarantee. Expect fewer trades. Always paper-trade first. Out-of-sample and live results will differ.
+### Why not a 0.8 ATR take-profit?
+
+An 80% win rate is easy to manufacture with a tiny target, but it is not
+profitable. With TP 0.8 ATR and SL 2.2 ATR:
+
+```
+break-even win rate = SL / (SL + TP) = 2.2 / (2.2 + 0.8) ≈ 73.3%
+```
+
+That is before fees and slippage, which on scalped 5m trades can consume a large
+share of a 0.8 ATR move. A balanced ~1:1 R:R needs only ~50% + costs, so modest
+win rates can still be profitable.
+
+**Important:** no win rate is guaranteed. The backtester now charges per-side
+fees and slippage; results are net of costs. On recent samples, the current
+signal edge is weak after costs on several majors (PF < 1). Treat these as
+starting parameters, not a validated money-making system, and paper-trade first.
 
 ### Re-calibrating per symbol / timeframe
 
-Defaults were calibrated on BTC/USDT 5m over a mostly bearish sample, so they
-can be long/short skewed. Re-run calibration whenever you change symbol,
-timeframe, or market regime, then promote only configs that keep **out-of-sample
-profit factor > 1** and **positive expectancy**:
+Re-run calibration whenever you change symbol, timeframe, or market regime, then
+promote only configs that keep **out-of-sample profit factor > 1** and
+**positive expectancy**:
 
 ```bash
 curl -X POST http://localhost:3001/api/calibrate \
   -H 'Content-Type: application/json' \
-  -d '{"symbol":"BTC/USDT","interval":"5m","days":30,"targetWinRate":0.75,"targetProfitFactor":1.2,"minTrades":12}'
+  -d '{"symbol":"BTC/USDT","interval":"5m","days":30,"targetWinRate":0.55,"targetProfitFactor":1.2,"minTrades":12}'
 ```
 
-Default grids include the current calibrated point
-(`stopAtr 2.2`, `tpAtr 0.8`, `minScore 35`, `minConfidence 70`). If the
-recommended params change, update `HIGH_WR` in `lib/signals/defaults.js` so the
-whole engine follows.
+The calibration grid includes the current default geometry
+(`stopAtr 1.5`, `tpAtr 1.5`, `minScore 35`, `minConfidence 70`) and charges the
+same fees/slippage. If the recommended params change, update `HIGH_WR` in
+`lib/signals/defaults.js` so the whole engine follows.
 
-### Backtest (uses the calibrated defaults)
+### Backtest (uses the current defaults)
 
 ```bash
 curl -X POST http://localhost:3001/api/backtest \
@@ -94,8 +111,35 @@ curl -X POST http://localhost:3001/api/backtest \
   -d '{"symbol":"BTC/USDT","interval":"5m","days":30}'
 ```
 
-Override any of `minScore`, `minConfidence`, `stopAtr`, `tpAtr` in the body if
-you are testing a different calibration.
+Override `minScore`, `minConfidence`, `stopAtr`, `tpAtr`, `feePct`, or
+`slippageBps` in the body to test a different profile. Use `feePct: 0,
+slippageBps: 0` only to reproduce the old cost-free figures.
+
+## Autopilot (paper only)
+
+On startup the engine runs a background autopilot that, every 5 minutes aligned
+to the candle close:
+
+1. Scans high-moving coins (top movers + liquid fallbacks).
+2. Runs the multi-timeframe high-selectivity signal.
+3. Opens **paper** positions within the equity/risk limits.
+4. The existing 10s loop closes positions on stop/take-profit and records P&L.
+
+It never places live orders. Configuration:
+
+```env
+ENABLE_AUTO_PAPER=true          # allow paper auto-trading
+AUTOPILOT_ENABLED=true          # start the background loop
+AUTOPILOT_INTERVAL_MINUTES=5    # cadence, aligned to candle close
+AUTOPILOT_SIGNAL_INTERVAL=5m    # signal timeframe
+AUTOPILOT_MAX_TRADES=3          # max new positions per run
+EXECUTER_RISK_PCT=1             # risk per trade (% of equity)
+```
+
+Live auto-trading still requires all of `ENABLE_LIVE_TRADING=true`,
+`ENABLE_AUTO_TRADE=true`, and `confirm: true` on the request. Check status at
+`GET /api/autopilot/status`; stop new entries any time with the kill switch
+(`POST /api/executer/kill` with `{"enabled":true}`).
 
 ## Safety defaults
 

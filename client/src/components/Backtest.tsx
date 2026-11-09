@@ -50,8 +50,8 @@ export default function Backtest() {
   const [days, setDays] = useState(7);
   const [minScore, setMinScore] = useState(35);
   const [minConfidence, setMinConfidence] = useState(70);
-  const [stopAtr, setStopAtr] = useState(2.2);
-  const [tpAtr, setTpAtr] = useState(0.8);
+  const [stopAtr, setStopAtr] = useState(1.5);
+  const [tpAtr, setTpAtr] = useState(1.5);
 
   const run = useMutation({
     mutationFn: () =>
@@ -180,6 +180,8 @@ export default function Backtest() {
             {result.symbol} · {result.interval} · {result.days}d · {result.candles} candles ·
             minScore {result.params.minScore} · minConf {result.params.minConfidence ?? "—"} ·
             stop {result.params.stopAtr}×ATR · TP {result.params.tpAtr}×ATR
+            {result.params.feePct != null ? ` · fee ${result.params.feePct}%/side` : ""}
+            {result.params.slippageBps != null ? ` · slip ${result.params.slippageBps}bps` : ""}
             {result.params.mode ? ` · ${result.params.mode}` : ""}
           </p>
 

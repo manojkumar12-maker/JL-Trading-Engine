@@ -117,6 +117,8 @@ export const api = {
     stopAtr?: number;
     tpAtr?: number;
     minConfidence?: number;
+    feePct?: number;
+    slippageBps?: number;
   }) =>
     request<BacktestResult>("/api/backtest", {
       method: "POST",
