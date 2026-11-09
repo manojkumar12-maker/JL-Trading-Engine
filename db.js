@@ -107,12 +107,6 @@ try {
   /* column already exists */
 }
 
-try {
-  db.exec("ALTER TABLE positions ADD COLUMN fee REAL");
-} catch {
-  /* column already exists */
-}
-
 db.exec(`
   CREATE TABLE IF NOT EXISTS backtests (
     id TEXT PRIMARY KEY,
@@ -172,7 +166,8 @@ db.exec(`
     opened_at INTEGER,
     closed_at INTEGER,
     exit_price REAL,
-    pnl REAL
+    pnl REAL,
+    fee REAL
   );
 
   CREATE TABLE IF NOT EXISTS settings (
@@ -191,6 +186,12 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_events_time ON events (time DESC);
 `);
+
+try {
+  db.exec("ALTER TABLE positions ADD COLUMN fee REAL");
+} catch {
+  /* column already exists */
+}
 
 const s = {
   upsertCandle: db.prepare(`
